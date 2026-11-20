@@ -40,3 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 medusa-app/
+
+# Sensitive
+docker/medusa-admin-key.txt
+
+# Large / generated files
+project-dump.txt
+
+# User uploads (should be on S3/R2 in production, not in git)
+public/uploads/*
+!public/uploads/.gitkeep
