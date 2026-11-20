@@ -6,12 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "tsx prisma/seed.ts",
+    "list": "node list-code.js"
   },
   "dependencies": {
+    "@medusajs/js-sdk": "^2.22.7",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "@puckeditor/core": "^0.24.0",
+    "better-auth": "^1.7.15",
+    "eddyter": "^1.4.27",
+    "file-type": "^22.3.0",
+    "framer-motion": "^14.9.0",
+    "isomorphic-dompurify": "^4.7.0",
+    "lucide-react": "^1.65.0",
     "next": "16.4.3",
+    "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-dropzone": "^20.2.1",
+    "recharts": "^3.11.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -20,7 +36,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "prisma": "^7.10.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

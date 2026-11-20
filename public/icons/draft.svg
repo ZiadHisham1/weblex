@@ -1,0 +1,13 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 16 16"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="1.5"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+  className="w-4 h-4"
+>
+  <path d="m13.75 7.5.5 1.25v2.5a2 2 0 0 1-2 2h-8.5a2 2 0 0 1-2-2v-2.5l1.8-5.007a1.5 1.5 0 0 1 1.411-.993h2.289m7 6h-3.25a.75.75 0 0 0-.75.75.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75.75.75 0 0 0-.75-.75h-3.25" />
+  <path d="m11.934 5.986 3.035-3.035a.96.96 0 0 0 0-1.357l-.562-.563a.96.96 0 0 0-1.358 0l-3.035 3.035-.764 2.684z" />
+</svg>

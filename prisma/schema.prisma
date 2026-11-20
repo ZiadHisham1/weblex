@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  memberships   TenantMember[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model TenantMember {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      TenantRole @default(VIEWER)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+enum TenantRole {
+  VIEWER
+  EDITOR
+  ADMIN
+  OWNER
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tenancy
+// ─────────────────────────────────────────────────────────────
+enum SiteType {
+  COMMERCE
+  SERVICE
+  PORTFOLIO
+}
+
+enum ProvisioningState {
+  PENDING
+  PROVISIONING
+  READY
+  FAILED
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  subdomain    String   @unique
+  name         String
+  siteType     SiteType @default(COMMERCE)
+  themeTokens  Json     @default("{}")
+  fontFamily   String   @default("Inter")
+  deletedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  welcomeBarType String? @default("none") // 'none', 'bar1', 'bar2'
+  welcomeBarData Json?  
+
+  umamiWebsiteId  String? 
+  
+  members      TenantMember[]
+  instance     SiteInstance?
+  domains      CustomDomain[]
+  medusa       MedusaBinding?
+  cms          CmsBinding?
+  contacts     ContactSubmission[]
+
+  assets TenantAsset[]
+  folders Folder[]
+
+  menus TenantMenu[]
+  blogPosts BlogPost[]
+}
+
+// Add this to your schema.prisma
+model TenantAsset {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  type      String
+  size      Int
+  altText   String?  // 👈 Added for accessibility / SEO
+  folderId  String?  // 👈 Added for folders
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// Update schema.prisma
+model BlogPost {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  content     String   // HTML from your rich text editor
+  excerpt     String?
+  imageUrl    String?
+  visibility  String   @default("VISIBLE") // VISIBLE or HIDDEN
+  author      String
+  blogName    String   @default("News")
+  tags        String[] // Array of tags
+  template    String   @default("Default blog post")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// Add this new model for Folders:
+model Folder {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  assets    TenantAsset[]
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model TenantMenu {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String   // e.g., "Main menu", "Footer menu", "Customer account main menu"
+  handle    String   // e.g., "main-menu", "footer", "customer-account"
+  items     Json     @default("[]") // Array of menu items { title, url }
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, handle])
+  @@index([tenantId])
+}
+
+model SiteInstance {
+  id        String   @id @default(uuid())
+  tenantId  String   @unique
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  data      Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model CustomDomain {
+  id         String   @id @default(uuid())
+  hostname   String   @unique
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([hostname, verified])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Satellites
+// ─────────────────────────────────────────────────────────────
+model MedusaBinding {
+  id                String            @id @default(uuid())
+  tenantId          String            @unique
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  backendUrl        String?
+  publishableKey    String?
+  salesChannelId    String?
+  regionId          String?
+  adminApiKey       String?
+  provisioningState ProvisioningState @default(PENDING)
+  provisionedAt     DateTime?
+  lastError         String?
+  lastErrorAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  locationId        String?
+  shippingProfileId String?
+  serviceZoneId     String?
+}
+
+model CmsBinding {
+  id                String            @id @default(uuid())
+  tenantId          String            @unique
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  apiUrl            String?
+  apiKey            String?
+  payloadTenantId   String?           @unique
+  provisioningState ProvisioningState @default(PENDING)
+  provisionedAt     DateTime?
+  lastError         String?
+  lastErrorAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cross-cutting
+// ─────────────────────────────────────────────────────────────
+model ContactSubmission {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  email      String
+  message    String
+  sourcePage String?
+  createdAt  DateTime @default(now())
+  handledAt  DateTime?
+  handledBy  String?
+
+  @@index([tenantId, createdAt])
+}

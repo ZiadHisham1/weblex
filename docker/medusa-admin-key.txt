@@ -1,0 +1,12 @@
+# After Medusa boots:
+#   1. Visit http://localhost:9000/app
+#   2. Log in: admin@weblex.local / admin123456
+#   3. Settings → API Keys → Create → Publishable + Secret
+#   4. Paste:
+#      MEDUSA_ADMIN_KEY=<secret key value>
+#      into .env (the Next.js one, not .env.medusa)
+#
+# Also create a Region:
+#   Settings → Regions → Create
+#   Name: default, Currency: USD, Countries: United States
+#   Note the region ID for the seed script.

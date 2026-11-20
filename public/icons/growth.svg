@@ -1,0 +1,14 @@
+<svg 
+  xmlns="http://www.w3.org/2000/svg" 
+  viewBox="0 0 16 16" 
+  fill="none" 
+  stroke="currentColor" 
+  strokeWidth="1.5" 
+  strokeLinecap="round" 
+  strokeLinejoin="round" 
+  className="w-4 h-4"
+>
+  <path fill="currentColor" stroke="none" d="M8 2.5c.835 0 1.636.147 2.379.415q-.072.09-.133.19l-.084.159-.467 1.004a5.5 5.5 0 0 0-6.521 7.872.75.75 0 0 1-1.316.72 7 7 0 0 1 6.142-10.36m5.266 2.39a6.97 6.97 0 0 1 1.734 4.61 7 7 0 0 1-.858 3.36.75.75 0 1 1-1.316-.72c.43-.783.674-1.682.674-2.64a5.47 5.47 0 0 0-.944-3.081z"></path>
+  <circle cx="8" cy="12" r="1.25" fill="currentColor" stroke="none" />
+  <path fill="currentColor" stroke="none" d="M12.43 4.316a.75.75 0 0 0-1.36-.632l.68.316zm-3.93 6.684.68.316 3.25-7-.68-.316-.68-.316-3.25 7z"></path>
+</svg>
