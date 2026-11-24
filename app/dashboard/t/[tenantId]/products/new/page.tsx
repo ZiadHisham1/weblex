@@ -28,13 +28,7 @@ export default async function NewProductPage({
   }
 
   return (
-    <div className="mx-auto max-w-[1200px] pb-24">
-      <header className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-900">Add product</h1>
-        </div>
-      </header>
-
+    <div className="mx-auto pb-24">
       <NewProductForm
         tenantId={tenantId}
         categories={categories}

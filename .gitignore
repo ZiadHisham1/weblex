@@ -50,3 +50,6 @@ project-dump.txt
 # User uploads (should be on S3/R2 in production, not in git)
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Medusa Backend (lives in a separate repo)
+medusa-app/

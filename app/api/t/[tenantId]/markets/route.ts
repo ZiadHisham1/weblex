@@ -2,10 +2,8 @@
 import { NextResponse } from 'next/server';
 import { requireTenantAccessApi } from '@/lib/auth/tenant-guard';
 import { getMedusaAdminClient } from '@/lib/medusa/client';
+import { prisma } from '@/lib/db'; // 👈 Import prisma
 
-// ---------------------------------------------------------------------------
-// GET — list all regions (markets) with countries
-// ---------------------------------------------------------------------------
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ tenantId: string }> },
@@ -31,9 +29,6 @@ export async function GET(
   }
 }
 
-// ---------------------------------------------------------------------------
-// POST — create a new region (market)
-// ---------------------------------------------------------------------------
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ tenantId: string }> },
@@ -55,6 +50,8 @@ export async function POST(
 
   try {
     const { sdk } = await getMedusaAdminClient(tenantId);
+
+    // 1. Create the region in Medusa
     const result = await sdk.admin.region.create({
       name: body.name.trim(),
       currency_code: body.currency_code.toLowerCase(),
@@ -62,10 +59,23 @@ export async function POST(
       automatic_taxes: body.automatic_taxes ?? true,
       is_tax_inclusive: body.is_tax_inclusive ?? false,
       payment_providers: body.payment_providers ?? ['pp_system_default'],
-      metadata: body.metadata ?? {},
+      metadata: {
+        ...(body.metadata ?? {}),
+        tenantId, // 👈 Stamp the region with the tenantId for safety
+      },
     } as any);
 
-    return NextResponse.json({ region: result.region });
+    // 2. Link the new region to the tenant in Prisma
+    // This overwrites the tenant's previous region (if any)
+    const updatedBinding = await prisma.medusaBinding.update({
+      where: { tenantId },
+      data: { regionId: result.region.id },
+    });
+
+    return NextResponse.json({ 
+      region: result.region, 
+      binding: updatedBinding 
+    });
   } catch (e: any) {
     console.error('[Markets POST]', e.response?.data || e);
     return NextResponse.json(

@@ -328,10 +328,10 @@ export function CustomersClient({
 
       {/* Add Customer Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-semibold text-gray-900">Add Customer</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
+          <div className="bg-white rounded-xl border-2 border-gray-200 shadow-md w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="font-semibold text-gray-800">Add Customer</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -359,7 +359,7 @@ export function CustomersClient({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-600">*</span>
+                  Email
                 </label>
                 <input
                   type="email"
@@ -371,7 +371,7 @@ export function CustomersClient({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone <span className="text-red-600">*</span>
+                  Phone
                 </label>
                 <input
                   type="tel"

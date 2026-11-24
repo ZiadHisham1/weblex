@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useDropzone } from 'react-dropzone';
+import {
+  ConfigurableEditorWithAuth,
+  EditorProvider,
+} from 'eddyter';
+import 'eddyter/style.css';
 import { 
   ChevronLeft, FileText, Loader2, Sparkles, Eye, ChevronDown 
 } from 'lucide-react';
-// import { Editor } from '@/components/editor'; 
+
+// 👇 Import the media selector modal
+import { MediaSelectorModal } from '@/components/puck/MediaSelectorModal';
 
 type InitialData = {
   id: string;
@@ -33,6 +39,7 @@ export function BlogPostEditor({
 }) {
   const router = useRouter();
   const isEditing = !!initialData;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [title, setTitle] = useState(initialData?.title || '');
@@ -47,30 +54,32 @@ export function BlogPostEditor({
   // Image State
   const [imageUrl, setImageUrl] = useState<string | null>(initialData?.imageUrl || null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
+  // Handle direct file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploadingImage(true);
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
-      const res = await fetch(`/api/t/${tenantId}/assets`, { method: 'POST', body: formData });
+      const res = await fetch(`/api/t/${tenantId}/assets`, {
+        method: 'POST',
+        body: formData,
+      });
       const data = await res.json();
       if (data.asset?.url) setImageUrl(data.asset.url);
-    } catch (e) {
-      console.error('Image upload failed', e);
+    } catch (error) {
+      console.error('Upload failed', error);
     } finally {
       setIsUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [tenantId]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
-    onDrop, accept: { 'image/*': [] }, maxFiles: 1 
-  });
+  };
 
   const handleSave = async () => {
     if (!title.trim()) return alert("Title is required");
@@ -140,16 +149,17 @@ export function BlogPostEditor({
               </div>
             </div>
 
+            {/* 👇 EDDYTER EDITOR INTEGRATION */}
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Content</label>
-              <div className="border border-gray-300 rounded-md overflow-hidden bg-white min-h-[300px]">
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Write your blog post content here..."
-                  className="w-full h-[300px] p-4 outline-none resize-none"
-                />
-                {/* Example: <Editor value={content} onChange={setContent} /> */}
+              <div className="rounded-lg overflow-hidden border border-gray-300">
+                <EditorProvider>
+                  <ConfigurableEditorWithAuth
+                    apiKey={process.env.NEXT_PUBLIC_EDDYTER_API_KEY ?? ''}
+                    initialContent={content || '<p></p>'}
+                    onChange={(html: string) => setContent(html)}
+                  />
+                </EditorProvider>
               </div>
             </div>
           </div>
@@ -198,23 +208,63 @@ export function BlogPostEditor({
             </div>
           </div>
 
+          {/* 👇 PREMIUM IMAGE SECTION */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <label className="text-sm font-medium text-gray-900">Image</label>
-            <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${isDragActive ? 'border-black bg-gray-50' : 'border-gray-300 hover:bg-gray-50'}`}>
-              <input {...getInputProps()} />
-              {imageUrl ? (
-                <div className="relative w-full aspect-video rounded-md overflow-hidden bg-gray-100 group">
-                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-xs font-medium">Change Image</span>
+            
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+
+            {imageUrl ? (
+              <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 group border border-gray-200">
+                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-white text-black text-xs font-medium px-3 py-1.5 rounded-md hover:bg-gray-100"
+                    >
+                      Upload New
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setImageUrl(null)}
+                      className="bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-md hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
-              ) : isUploadingImage ? (
-                <div className="py-4"><Loader2 className="w-6 h-6 text-gray-400 animate-spin mx-auto mb-2" /><p className="text-xs text-gray-500">Uploading...</p></div>
-              ) : (
-                <><div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-md text-xs font-medium mb-3">Add Image</div><p className="text-xs text-gray-500">or drop an image to upload</p></>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="w-full border-2 border-dashed border-gray-300 rounded-lg py-8 px-4 flex flex-col items-center justify-center text-center bg-gray-50/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => !isUploadingImage && fileInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    className="bg-gray-100 text-gray-900 text-sm font-medium px-4 py-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    {isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {isUploadingImage ? 'Uploading...' : 'Upload new'}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setIsMediaModalOpen(true)}
+                    className="text-sm text-gray-600 hover:text-black transition-colors font-medium"
+                  >
+                    Select existing
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">Accepts images, or drop an image to upload</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
@@ -262,6 +312,14 @@ export function BlogPostEditor({
           {isEditing ? 'Save changes' : 'Save Post'}
         </button>
       </div>
+
+      {/* 👇 Media Selector Modal */}
+      <MediaSelectorModal
+        tenantId={tenantId}
+        isOpen={isMediaModalOpen}
+        onClose={() => setIsMediaModalOpen(false)}
+        onSelect={(urls) => setImageUrl(urls[0] || null)}
+      />
     </div>
   );
 }

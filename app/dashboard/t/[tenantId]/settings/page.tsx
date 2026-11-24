@@ -1,9 +1,8 @@
-// app/dashboard/t/[tenantId]/settings/page.tsx
+import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { notFound } from 'next/navigation';
-import { requireTenantAccess } from '@/lib/auth/tenant-guard';
+import { getSession } from '@/lib/auth/session';
+import { requireTenantAccessApi } from '@/lib/auth/tenant-guard';
 import { SettingsForm } from './settings-form';
-import { resolveTheme } from '@/lib/theme';
 
 export default async function SettingsPage({
   params,
@@ -11,34 +10,37 @@ export default async function SettingsPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  await requireTenantAccess(tenantId, 'VIEWER');
+
+  const session = await getSession();
+  if (!session) redirect(`/login?next=/dashboard/t/${tenantId}/settings`);
+
+  const auth = await requireTenantAccessApi(tenantId, 'ADMIN');
+  if (!auth.ok) redirect(`/dashboard/t/${tenantId}`);
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
+    select: {
+      id: true,
+      name: true,
+      themeTokens: true,
+      welcomeBarType: true,
+      welcomeBarData: true,
+    },
   });
-  if (!tenant) notFound();
+  if (!tenant) redirect('/dashboard');
 
-  const theme = resolveTheme(tenant.themeTokens);
+  const theme = (tenant.themeTokens as any) || {};
+  const barData = (tenant.welcomeBarData as any) || null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <header className="border-b pb-4">
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Manage your storefront branding and details.
-        </p>
-      </header>
-
-     <SettingsForm
-        tenantId={tenant.id}
-        initialName={tenant.name}
-        initialPrimary={theme.colors.primary}
-        initialAccent={theme.colors.accent}
-        initialFont={tenant.fontFamily}
-        // 👇 Pass the new data
-        initialWelcomeBarType={tenant.welcomeBarType || 'none'}
-        initialWelcomeBarData={tenant.welcomeBarData}
-      />
-    </div>
+    <SettingsForm
+      tenantId={tenant.id}
+      initialName={tenant.name}
+      initialPrimary={theme.primaryColor ?? '#000000'}
+      initialAccent={theme.accentColor ?? '#000000'}
+      initialFont={theme.fontFamily ?? 'Inter'}
+      initialWelcomeBarType={tenant.welcomeBarType ?? 'none'}
+      initialWelcomeBarData={barData}
+    />
   );
 }

@@ -42,6 +42,9 @@ export function Sidebar({
   const pathname = usePathname();
   const base = `/dashboard/t/${tenant.id}`;
 
+  // 👇 Collapse state based on the route
+  const isCollapsed = pathname.includes('/settings');
+
   const isProductsRoute = PRODUCT_SUB_MENUS.some((menu) => pathname.includes(menu.path)) || pathname.includes('/products');
   const isOrdersRoute = ORDER_SUB_MENUS.some((menu) => pathname.includes(menu.path)) || pathname.includes('/orders');
   const isContentRoute = CONTENT_SUB_MENUS.some((menu) => pathname.includes(menu.path));
@@ -62,7 +65,6 @@ export function Sidebar({
     if (isContentRoute) setIsContentOpen(true);
   }, [isContentRoute]);
 
-  // 👇 REMOVED the Settings group from here
   const groups = [
     {
       items: [
@@ -78,7 +80,7 @@ export function Sidebar({
       ],
     },
     {
-      title: 'Sales chennels', // Kept your original spelling
+      title: 'Sales chennels',
       items: [
         { href: `${base}/editor`, label: 'Store front', Icon: 'Palette.svg' },
         { href: `${base}`, label: 'Pages', Icon: 'FileText.svg' },
@@ -95,38 +97,61 @@ export function Sidebar({
   ];
 
   return (
-    <aside className="flex h-full w-[200px] shrink-0 flex-col bg-[#000] text-[#a3a3a3] font-sans ">
+    <aside 
+      className={`flex h-full shrink-0 flex-col bg-[#000] text-[#a3a3a3] font-sans transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-[64px]' : 'w-[200px]'
+      }`}
+    >
       
       {/* Top Logo Area */}
       <Link
         href="/dashboard"
-        className="flex h-14 shrink-0 items-center gap-2 px-4 font-semibold transition-colors "
+        className={`flex h-14 shrink-0 items-center gap-2 px-4 font-semibold transition-colors ${isCollapsed ? 'justify-center' : ''}`}
       >
-        <span className="inline-block h-6 w-6 rounded bg-white" />
-        <span className="text-white text-sm">Weblex</span>
+        <span className="inline-block h-6 w-6 rounded bg-white shrink-0" />
+        {!isCollapsed && <span className="text-white text-sm whitespace-nowrap">Weblex</span>}
       </Link>
 
       {/* Search Bar */}
-      <div className="px-3 pb-2 pt-1">
-        <button className="relative flex w-full overflow-hidden items-center justify-between border-0.5 border-[#ffffff4b] border-b-0 rounded-2xl bg-gradient-to-t from-transparent via-bg-white/5 to-white/20 px-3 py-1.5 text-sm text-gray-400 hover:bg-[#2a2a2a] transition-colors border focus:border-gray-600">
-          <div className='absolute z-0 left-0 top-0 py-2 w-[100%] h-full rounded-xl  bg-white/20 p-6 shadow-xl backdrop-blur-md backdrop-saturate-150' />  
-          <div className="flex z-2 items-center gap-2">
+      <div className={`pb-2 pt-1 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        {!isCollapsed ? (
+          <button 
+            onClick={() => {
+              const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+              const event = new KeyboardEvent('keydown', {
+                key: 'k',
+                ctrlKey: !isMac,
+                metaKey: isMac,
+                bubbles: true
+              });
+              window.dispatchEvent(event);
+            }} 
+            className="relative flex w-full overflow-hidden items-center justify-between border-0.5 border-[#ffffff4b] border-b-0 rounded-xl bg-gradient-to-t from-transparent via-bg-white/5 to-white/20 px-3 py-1.5 text-sm text-gray-400 hover:bg-[#2a2a2a] transition-colors border focus:border-gray-600">
+            <div className='absolute z-0 left-0 top-0 py-2 w-[100%] h-full rounded-xl bg-white/20 p-6 shadow-xl backdrop-blur-md backdrop-saturate-150' />  
+            <div className="flex z-2 items-center gap-2">
+              <Search className="w-4 h-4" />
+              <span>Search</span>
+            </div>
+            <span className="text-xs z-2 text-gray-500 font-medium bg-[#2a2a2a] px-1.5 py-0.5 rounded">Ctrl K</span>
+          </button>
+        ) : (
+          <button className="flex w-full items-center justify-center py-2 text-gray-400 hover:text-white transition-colors">
             <Search className="w-4 h-4" />
-            <span>Search</span>
-          </div>
-          <span className="text-xs z-2 text-gray-500 font-medium bg-[#2a2a2a] px-1.5 py-0.5 rounded">Ctrl K</span>
-        </button>
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2 no-scrollbar">
+      <nav className="flex-1 overflow-y-auto no-scrollbar px-2 py-2">
         {groups.map((group, gi) => (
           <div key={gi} className="mb-4">
-            {group.title && (
+            {group.title && !isCollapsed && (
               <div className="px-3 pb-1 pt-3 text-xs font-medium text-gray-400 flex items-center justify-between group cursor-pointer hover:text-white transition-colors">
                 {group.title} 
                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />
               </div>
             )}
+            {group.title && isCollapsed && <div className="h-px bg-gray-800 my-2 mx-2" />} {/* Divider for collapsed state */}
+            
             <ul className="space-y-[2px]">
               {group.items.map((item: any) => {
                 const isChildActive = 
@@ -158,6 +183,7 @@ export function Sidebar({
                   <li key={item.href} className="no-scrollbar flex flex-col">
                     <Link
                       href={item.href}
+                      title={isCollapsed ? item.label : undefined} // Add tooltip on hover when collapsed
                       onClick={() => {
                         if (isProductItem) {
                           if (pathname !== item.href && !isProductsOpen){
@@ -183,9 +209,11 @@ export function Sidebar({
                             setIsContentOpen(false);
                         }
                       }}
-                      className={`flex items-center px-2 py-1.5 rounded-xl transition-colors ${
+                      className={`flex items-center rounded-xl transition-colors ${
+                        isCollapsed ? 'justify-center px-0 py-2' : 'px-2 py-1.5'
+                      } ${
                         pathMatch
-                          ? 'relative flex w-full overflow-hidden items-center border-[.1px] border-[#ffffff34] border-b-0 rounded-2xl bg-gradient-to-t from-white/10 via-bg-white/5 to-white/20 px-3 py-1.5 text-sm text-white hover:bg-[#2a2a2a] transition-colors border focus:border-gray-600'
+                          ? 'relative w-full overflow-hidden border-[.1px] border-[#ffffff34] border-b-0 rounded-2xl bg-gradient-to-t from-white/10 via-bg-white/5 to-white/20 text-sm text-white hover:bg-[#2a2a2a] transition-colors focus:border-gray-600'
                           : 'hover:bg-[#1f1f1f] hover:text-white text-gray-300'
                       }`}
                     >
@@ -193,7 +221,8 @@ export function Sidebar({
                         <CustomIcon
                           strokeWidth={active || isOpen ? 2 : 1.5}
                           className={[
-                            'shrink-0 w-4 h-4 mr-3',
+                            'shrink-0 w-4 h-4',
+                            !isCollapsed ? 'mr-3' : '',
                             'transition-opacity duration-150',
                             active || isOpen ? 'text-white opacity-100' : 'text-gray-400 opacity-100',
                           ].join(' ')}
@@ -203,20 +232,24 @@ export function Sidebar({
                           svg={svg}
                           strokeWidth={active || isOpen ? 2 : 1.5}
                           className={[
-                            'shrink-0 w-4 h-4 mr-1.5',
+                            'shrink-0 w-4 h-4',
+                            !isCollapsed ? 'mr-1.5' : 'text-gray-500',
                             '[&_svg]:w-full [&_svg]:h-full [&_svg]:block',
                             'transition-opacity duration-150',
-                            active || isOpen ? 'text-white opacity-100' : 'text-gray-400 opacity-100',
+                            active || isOpen ? `${isCollapsed ? "" : "text-white"} opacity-100` : 'text-gray-400 opacity-100',
                           ].join(' ')}
                         />
                       )}
                       
-                      <span className="text-[12px] tracking-wider">
-                        <span>{item.label}</span>
-                      </span>
+                      {!isCollapsed && (
+                        <span className="text-[12px] tracking-wider whitespace-nowrap">
+                          <span>{item.label}</span>
+                        </span>
+                      )}
                     </Link>
 
-                    {isOpen && subMenus.length > 0 && (
+                    {/* Only show submenus if not collapsed */}
+                    {!isCollapsed && isOpen && subMenus.length > 0 && (
                       <ul className="flex flex-col mt-1 space-y-[2px] pb-2">
                         {subMenus.map((subMenu) => {
                           const fullPath = `${base}${subMenu.path}`;
@@ -233,8 +266,7 @@ export function Sidebar({
                                 }`}
                               >
                                 <div className=''>
-                                  {/* {isSubActive ? (<div className='absolute z-0 left-0 top-0 py-2 w-[100%] h-full rounded-xl opacity-50 bg-white/20 p-6 shadow-xl backdrop-blur-md backdrop-saturate-150' />) : (<></>)} */}
-                                  <span className='relativez-2'>{subMenu.label}</span>
+                                  <span className='relative z-2'>{subMenu.label}</span>
                                 </div>
                               </Link>
                             </li>
@@ -251,12 +283,15 @@ export function Sidebar({
       </nav>
 
       {/* 👇 FOOTER AREA WITH SETTINGS + PROFILE */}
-      <div className="mt-auto px-2 pb-4 pt-2">
+      <div className={`mt-auto pb-4 pt-2 ${isCollapsed ? 'px-2' : 'px-2'}`}>
         
-        {/* Settings Link (Moved Here) */}
+        {/* Settings Link */}
         <Link 
           href={`${base}/settings`} 
-          className={`flex items-center px-2 py-1.5 rounded-md transition-colors mb-2 ${
+          title={isCollapsed ? 'Settings' : undefined}
+          className={`flex items-center rounded-md transition-colors mb-2 ${
+            isCollapsed ? 'justify-center py-2' : 'px-2 py-1.5'
+          } ${
             pathname === `${base}/settings`
               ? 'bg-[#1f1f1f] text-white font-medium'
               : 'hover:bg-[#1f1f1f] hover:text-white text-gray-300'
@@ -265,28 +300,40 @@ export function Sidebar({
           <GearIcon
             strokeWidth={pathname === `${base}/settings` ? 2 : 1.5}
             className={[
-              'shrink-0 w-4 h-4 mr-3',
+              'shrink-0 w-4 h-4',
+              !isCollapsed ? 'mr-3' : '',
               'transition-opacity duration-150',
               pathname === `${base}/settings` ? 'text-white opacity-100' : 'text-gray-400 opacity-100',
             ].join(' ')}
           />
-          <span className="text-[13px]">Settings</span>
+          {!isCollapsed && <span className="text-[13px] whitespace-nowrap">Settings</span>}
         </Link>
 
         {/* User Profile */}
-        <div className="flex items-center justify-between px-2 py-2 mt-1 rounded-md hover:bg-[#1f1f1f] cursor-pointer group transition-colors border-t border-gray-800/50 pt-3">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-6 h-6 rounded bg-pink-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+        <div className={`flex items-center cursor-pointer group transition-colors border-t border-gray-800/50 pt-3 ${
+            isCollapsed ? 'justify-center px-0 py-2' : 'px-2 py-2'
+          }`}
+        >
+          {!isCollapsed ? (
+            <>
+              <div className="flex items-center gap-2 overflow-hidden">
+                <div className="w-6 h-6 rounded bg-pink-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                  ZH
+                </div>
+                <span className="text-[13px] text-gray-300 group-hover:text-white truncate">
+                  ziadhisham
+                </span>
+                <span className="text-[10px] font-medium bg-[#2a2a2a] text-gray-300 px-1.5 py-0.5 rounded">
+                  dev
+                </span>
+              </div>
+              <Bell className="w-4 h-4 text-gray-400 group-hover:text-white shrink-0 ml-auto" />
+            </>
+          ) : (
+            <div className="w-8 h-8 rounded bg-pink-500 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
               ZH
             </div>
-            <span className="text-[13px] text-gray-300 group-hover:text-white truncate">
-              ziadhisham
-            </span>
-            <span className="text-[10px] font-medium bg-[#2a2a2a] text-gray-300 px-1.5 py-0.5 rounded">
-              dev
-            </span>
-          </div>
-          <Bell className="w-4 h-4 text-gray-400 group-hover:text-white shrink-0" />
+          )}
         </div>
       </div>
     </aside>

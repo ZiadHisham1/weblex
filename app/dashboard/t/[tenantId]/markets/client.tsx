@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Globe,
@@ -18,6 +17,9 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { MarketIcon } from '@/components/icons/MarketIcon';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Check } from 'lucide-react'; // 👈 Import Check
+
 
 type Region = {
   id: string;
@@ -196,6 +198,20 @@ export function MarketsClient({
   }, [countries, countrySearch]);
 
   const fmtCurrency = (code: string) => currencyMap.get(code.toLowerCase())?.symbol ?? code.toUpperCase();
+
+  // Inside MarketsClient, add these:
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
+  const currencyDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (currencyDropdownRef.current && !currencyDropdownRef.current.contains(event.target as Node)) {
+        setIsCurrencyDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="mx-auto space-y-4 pb-20">
@@ -380,192 +396,230 @@ export function MarketsClient({
         </div>
       )}
 
-      {/* Create Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-semibold text-gray-900">Create market</h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+    {/* 👇 Premium Create Market Modal */}
+    {isModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 border-2 border-gray-200">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Create market</h2>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form
+            onSubmit={handleCreate}
+            className="p-6 space-y-5 overflow-y-auto custom-scrollbar"
+          >
+            {/* Market Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                Market name <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. North America"
+                required
+                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-shadow placeholder:text-gray-400"
+              />
             </div>
 
-            <form
-              onSubmit={handleCreate}
-              className="p-4 space-y-4 overflow-y-auto"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Market name <span className="text-red-600">*</span>
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. North America"
-                  required
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                />
-              </div>
+            {/* Custom Currency Dropdown */}
+            <div className="relative" ref={currencyDropdownRef}>
+              <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                Currency
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)}
+                className="w-full flex items-center justify-between rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors"
+              >
+                <span className="text-gray-900">
+                  {currencyMap.get(form.currency_code)?.symbol} {form.currency_code.toUpperCase()} — {currencyMap.get(form.currency_code)?.name}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isCurrencyDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Currency <span className="text-red-600">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={form.currency_code}
-                    onChange={(e) =>
-                      setForm({ ...form, currency_code: e.target.value })
-                    }
-                    className="w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-8 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  >
+              {isCurrencyDropdownOpen && (
+                <div className="absolute z-10 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150 custom-scrollbar">
+                  <div className="p-1.5">
                     {currencies.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.symbol} {c.code.toUpperCase()} — {c.name}
-                      </option>
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, currency_code: c.code });
+                          setIsCurrencyDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${
+                          form.currency_code === c.code ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{c.symbol} {c.code.toUpperCase()} — {c.name}</span>
+                        {form.currency_code === c.code && <Check className="w-4 h-4 text-black" />}
+                      </button>
                     ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Countries <span className="text-red-600">*</span>
-                </label>
-                {form.countries.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {form.countries.map((code) => {
-                      const c = countryMap.get(code);
-                      return (
-                        <span
-                          key={code}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 border border-gray-200 rounded-md text-xs text-gray-700"
+            {/* Countries */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                Countries <span className="text-red-500">*</span>
+              </label>
+              
+              {form.countries.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2.5 animate-in fade-in">
+                  {form.countries.map((code) => {
+                    const c = countryMap.get(code);
+                    return (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 bg-gray-100 border border-gray-200 rounded-md text-xs font-medium text-gray-700"
+                      >
+                        {c?.flag} {c?.name ?? code.toUpperCase()}
+                        <button
+                          type="button"
+                          onClick={() => toggleCountry(code)}
+                          className="p-0.5 hover:bg-gray-200 rounded text-gray-500 hover:text-red-600 transition-colors"
                         >
-                          {c?.flag} {c?.name ?? code.toUpperCase()}
-                          <button
-                            type="button"
-                            onClick={() => toggleCountry(code)}
-                            className="text-gray-500 hover:text-red-600"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="border border-gray-300 rounded-md overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50">
-                    <Search className="w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search countries..."
-                      value={countrySearch}
-                      onChange={(e) => setCountrySearch(e.target.value)}
-                      className="w-full text-sm outline-none bg-transparent"
-                    />
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredCountryOptions.length === 0 ? (
-                      <p className="p-3 text-xs text-gray-500 text-center">
-                        No countries match "{countrySearch}"
-                      </p>
-                    ) : (
-                      filteredCountryOptions.map((c) => {
-                        const selected = form.countries.includes(c.code);
-                        return (
-                          <button
-                            type="button"
-                            key={c.code}
-                            onClick={() => toggleCountry(c.code)}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
-                              selected ? 'bg-black text-white' : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <span className="text-lg leading-none">{c.flag}</span>
-                              <span>{c.name}</span>
-                              <span
-                                className={`text-xs font-mono ${
-                                  selected ? 'text-gray-300' : 'text-gray-400'
-                                }`}
-                              >
-                                {c.code.toUpperCase()}
-                              </span>
-                            </span>
-                            {selected && <span className="text-xs">✓</span>}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  {form.countries.length} selected
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.automatic_taxes}
-                    onChange={(e) =>
-                      setForm({ ...form, automatic_taxes: e.target.checked })
-                    }
-                    className="rounded border-gray-300 text-black focus:ring-black"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Calculate taxes automatically
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.is_tax_inclusive}
-                    onChange={(e) =>
-                      setForm({ ...form, is_tax_inclusive: e.target.checked })
-                    }
-                    className="rounded border-gray-300 text-black focus:ring-black"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Product prices include tax
-                  </span>
-                </label>
-              </div>
-
-              {formError && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-                  {formError}
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
-                >
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isSubmitting ? 'Creating…' : 'Create market'}
-                </button>
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-gray-200 bg-gray-50">
+                  <Search className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search countries..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    className="w-full text-sm outline-none bg-transparent placeholder:text-gray-400"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                  {filteredCountryOptions.length === 0 ? (
+                    <p className="p-4 text-xs text-gray-500 text-center">
+                      No countries match "{countrySearch}"
+                    </p>
+                  ) : (
+                    filteredCountryOptions.map((c) => {
+                      const selected = form.countries.includes(c.code);
+                      return (
+                        <button
+                          type="button"
+                          key={c.code}
+                          onClick={() => toggleCountry(c.code)}
+                          className={`w-full flex items-center justify-between px-3.5 py-2 text-sm text-left transition-colors ${
+                            selected ? 'bg-black text-white' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <span className="text-base leading-none">{c.flag}</span>
+                            <span>{c.name}</span>
+                            <span
+                              className={`text-[10px] font-mono tracking-wider ${
+                                selected ? 'text-gray-300' : 'text-gray-400'
+                              }`}
+                            >
+                              {c.code.toUpperCase()}
+                            </span>
+                          </span>
+                          {selected && <Check className="w-4 h-4" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-            </form>
-          </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {form.countries.length} {form.countries.length === 1 ? 'country' : 'countries'} selected
+              </p>
+            </div>
+
+            {/* Taxes Options */}
+            <div className="space-y-3 pt-1">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={form.automatic_taxes}
+                  onChange={(e) =>
+                    setForm({ ...form, automatic_taxes: e.target.checked })
+                  }
+                  className="mt-0.5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 group-hover:text-black transition-colors">
+                    Calculate taxes automatically
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Taxes will be calculated based on the customer's shipping address.
+                  </p>
+                </div>
+              </label>
+              
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={form.is_tax_inclusive}
+                  onChange={(e) =>
+                    setForm({ ...form, is_tax_inclusive: e.target.checked })
+                  }
+                  className="mt-0.5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 group-hover:text-black transition-colors">
+                    Product prices include tax
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Enable this if your product prices already include taxes.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Error Message */}
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-3.5 py-2.5 text-sm text-red-700 animate-in fade-in slide-in-from-top-2">
+                {formError}
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isSubmitting ? 'Creating…' : 'Create market'}
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }

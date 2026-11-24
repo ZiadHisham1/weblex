@@ -1,0 +1,20 @@
+import React from "react";
+
+export function HomeIcon({ className, ...props } : React.SVGProps<SVGSVGElement>){
+    return(
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            viewBox="0 0 16 16" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="1.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className={`w-5 h-5 ${ className || ''}`}
+            {...props}
+            >
+            <path d="M6.362 2.246a3 3 0 0 1 3.277 0l2.749 1.79a3 3 0 0 1 1.362 2.514v5.094c0 .96-.683 1.783-1.634 1.911-1.107.149-2.634.307-4.116.307s-3.008-.158-4.116-.307c-.951-.128-1.634-.95-1.634-1.91v-5.091a3 3 0 0 1 1.36-2.513z"></path>
+            <path d="M5.276 10.319s1.67.312 2.748.312 2.752-.312 2.752-.312"></path>
+        </svg>
+    );
+}

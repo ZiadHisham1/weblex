@@ -1,51 +1,80 @@
-// app/dashboard/t/[tenantId]/settings/actions.ts
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireTenantAccess } from '@/lib/auth/tenant-guard';
-import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
+import { requireTenantAccessApi } from '@/lib/auth/tenant-guard';
+import { revalidatePath, revalidateTag } from 'next/cache';
+
+type ThemeTokens = { primaryColor?: string; accentColor?: string };
+type WelcomeBarData = {
+  bgColor?: string;
+  textColor?: string;
+  text?: string;
+  texts?: string[];
+};
 
 export async function updateTenantSettings(
   tenantId: string,
-  data: { 
-    name: string; 
-    primaryColor: string; 
-    accentColor: string; 
-    fontFamily: string;
-    // 👇 Add Welcome Bar fields
-    welcomeBarType: string;
-    welcomeBarData: any; 
-  }
+  updates: {
+    name?: string;
+    themeTokens?: ThemeTokens;
+    fontFamily?: string;
+    welcomeBarType?: string;
+    welcomeBarData?: WelcomeBarData;
+    [key: string]: any;
+  },
 ) {
-  await requireTenantAccess(tenantId, 'ADMIN');
+  const auth = await requireTenantAccessApi(tenantId, 'ADMIN');
+  if (!auth.ok) throw new Error(auth.error);
+
+  const {
+    name,
+    themeTokens,
+    fontFamily,
+    welcomeBarType,
+    welcomeBarData,
+    ...miscSettings
+  } = updates;
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  const existingTokens = (tenant?.themeTokens as Record<string, any>) ?? {};
-  
-  const newTokens = {
-    ...existingTokens,
-    colors: {
-      ...(existingTokens.colors || {}),
-      primary: data.primaryColor,
-      accent: data.accentColor,
-    },
-  };
+  if (!tenant) throw new Error('Tenant not found');
+
+  // const { name, themeTokens, welcomeBarType, welcomeBarData, ...miscSettings } = updates;
+
+  // 👇 ADD THIS LOG
+  console.log("=== INCOMING UPDATES FROM FORM ===");
+  console.log("themeTokens:", themeTokens);
+  console.log("fontFamily:", updates.fontFamily)
+
+  const currentSettings = (tenant.settings as Record<string, any>) || {};
 
   await prisma.tenant.update({
     where: { id: tenantId },
     data: {
-      name: data.name,
-      fontFamily: data.fontFamily,
-      themeTokens: newTokens as Prisma.InputJsonValue,  
-      // 👇 Save Welcome Bar data
-      welcomeBarType: data.welcomeBarType,
-      welcomeBarData: data.welcomeBarData,
+      ...(name !== undefined && { name }),
+      // 👇 colors land in themeTokens (read by resolveTheme in the layout)
+      ...(themeTokens !== undefined && { themeTokens }),
+      // 👇 font goes to the top-level column the layout actually reads
+      ...(fontFamily !== undefined && { fontFamily }),
+      ...(welcomeBarType !== undefined && { welcomeBarType }),
+      ...(welcomeBarData !== undefined && { welcomeBarData }),
+      settings: { ...currentSettings, ...miscSettings },
     },
   });
 
-  revalidatePath(`/dashboard/t/${tenantId}`);
-  revalidatePath(`/dashboard/t/${tenantId}/settings`);
-  // Also revalidate the storefront layout so changes appear immediately
-  revalidatePath(`/sites/${tenant.subdomain}`, 'layout');
+  // 👇 ADD THIS LOG AFTER UPDATE
+  const updatedTenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  console.log("=== SAVED IN DATABASE ===");
+  console.log("themeTokens:", updatedTenant?.themeTokens);
+  console.log("fontFamily:", updatedTenant?.fontFamily);
+
+  // Revalidate the dashboard page…
+  revalidatePath(`/dashboard/t/${tenantId}/settings`, 'layout');
+  // …and the storefront. Use the literal route pattern with the dynamic
+  // segment, not `/`. Also revalidate any catch-all page route under it.
+  revalidatePath('/sites/[site]', 'layout');
+  revalidatePath('/sites/[site]/[[...path]]', 'page');
+  // Tag-based invalidation (see §4) so cached tenant fetches refresh too.
+  revalidateTag(`tenant:${tenantId}`);
+
+  return { success: true };
 }

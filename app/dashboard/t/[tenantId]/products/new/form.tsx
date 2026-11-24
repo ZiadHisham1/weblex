@@ -16,6 +16,7 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
+import { MediaSelectorModal } from '@/components/puck/MediaSelectorModal'; // 👈 Import the new modal
 
 export function NewProductForm({
   tenantId,
@@ -29,6 +30,7 @@ export function NewProductForm({
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -126,11 +128,25 @@ export function NewProductForm({
     }
   };
 
+  const handleSelectExisting = (urls: string[]) => {
+    setImages(prev => {
+      // Merge new images with existing ones, filtering out duplicates
+      const newImages = [...prev];
+      urls.forEach(url => {
+        if (!newImages.includes(url)) newImages.push(url);
+      });
+      return newImages;
+    });
+  };
+
   return (
-    <form onSubmit={handleSubmit} className='relative'>
-      {/* ============== STICKY TOP BAR ============== */}
-      <div className='overflow-hidden'>
-        <div className="fixed top-14 right-5 z-40 flex justify-center pointer-events-none">
+    <form onSubmit={handleSubmit} className='flex flex-col justify-center'>
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900">Add product</h1>
+        </div>
+        <div className='overflow-hidden'>
+        <div className="flex justify-center pointer-events-none">
           <div className="flex items-center gap-2 bg-gray-900 rounded-full px-2 py-1 shadow-lg pointer-events-auto mt-3">
             <span className="text-xs text-gray-300 px-3">Unsaved product</span>
             <Link
@@ -150,8 +166,10 @@ export function NewProductForm({
           </div>
         </div>
       </div>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 pt-16 mt-4">
+      <div className="flex justify-center w-full">
+       <div className="max-w-[1200px] w-full justify-center grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 pt-6 mt-4">
         {/* ============== LEFT COLUMN ============== */}
         <div className="space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
@@ -198,19 +216,26 @@ export function NewProductForm({
               {images.length === 0 ? (
                 // Empty State
                 <div
-                  onClick={() => !uploading && fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-lg py-10 px-6 flex flex-col items-center justify-center text-center bg-gray-50/50 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="w-full border-2 border-dashed border-gray-300 rounded-lg py-10 px-6 flex flex-col items-center justify-center text-center bg-gray-50/50"
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <button
                       type="button"
+                      onClick={() => !uploading && fileInputRef.current?.click()}
                       disabled={uploading}
                       className="bg-gray-100 text-gray-900 text-sm font-medium px-5 py-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2"
                     >
                       {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                       {uploading ? 'Uploading...' : 'Upload new'}
                     </button>
-                    <span className="text-sm text-gray-600">Select existing</span>
+                    {/* 👇 Connect the "Select existing" text to the modal */}
+                    <button 
+                      type="button"
+                      onClick={() => setIsMediaModalOpen(true)}
+                      className="text-sm text-gray-600 hover:text-black transition-colors"
+                    >
+                      Select existing
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500">Accepts images, videos, or 3D models</p>
                 </div>
@@ -234,16 +259,29 @@ export function NewProductForm({
                     </div>
                   ))}
 
-                  {/* Add more button */}
-                  <div
-                    onClick={() => !uploading && fileInputRef.current?.click()}
-                    className="w-[140px] h-[140px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors shrink-0"
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                    ) : (
-                      <Plus className="w-6 h-6 text-gray-600" />
-                    )}
+                  {/* Add more buttons */}
+                  <div className="flex gap-2 shrink-0">
+                    <div
+                      onClick={() => !uploading && fileInputRef.current?.click()}
+                      className="w-[140px] h-[140px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+                      ) : (
+                        <Plus className="w-6 h-6 text-gray-600" />
+                      )}
+                      <span className="text-[10px] text-gray-500 mt-2 font-medium">Upload</span>
+                    </div>
+                    
+                    {/* 👇 Add a button to open the modal when images already exist */}
+                    <button
+                      type="button"
+                      onClick={() => setIsMediaModalOpen(true)}
+                      className="w-[140px] h-[140px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                    >
+                      {/* <ImageIcon className="w-6 h-6 text-gray-600" /> */}
+                      <span className="text-[10px] text-gray-500 mt-2 font-medium">Select Existing</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -339,12 +377,21 @@ export function NewProductForm({
           </div>
         </div>
       </div>
+     </div>
 
       {error && (
         <div className="mt-6 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
+
+      {/* 👇 Render the Modal outside the main form content */}
+      <MediaSelectorModal
+        tenantId={tenantId}
+        isOpen={isMediaModalOpen}
+        onClose={() => setIsMediaModalOpen(false)}
+        onSelect={handleSelectExisting}
+      />
     </form>
   );
 }

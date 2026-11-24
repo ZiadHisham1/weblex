@@ -17,11 +17,9 @@ export async function provisionTenant(tenantId: string): Promise<Result> {
 async function provisionMedusa(tenantId: string, tenantName: string): Promise<Result> {
   const MEDUSA_URL = process.env.MEDUSA_URL;
   const MEDUSA_ADMIN_KEY = process.env.MEDUSA_ADMIN_KEY;
-  const MEDUSA_REGION_ID = process.env.MEDUSA_REGION_ID;
   if (!MEDUSA_URL || !MEDUSA_ADMIN_KEY) {
     return fail(tenantId, 'MEDUSA_URL or MEDUSA_ADMIN_KEY missing');
   }
-  if (!MEDUSA_REGION_ID) return fail(tenantId, 'MEDUSA_REGION_ID missing');
 
   const claimed = await prisma.medusaBinding.updateMany({
     where: { tenantId, provisioningState: { in: ['PENDING', 'FAILED'] } },
@@ -89,20 +87,19 @@ async function provisionMedusa(tenantId: string, tenantName: string): Promise<Re
       location = createdLoc.stock_location;
     }
 
-    // Link the stock location to the sales channel (idempotent — re-run is safe)
+    // Link the stock location to the sales channel (idempotent)
     try {
       await sdk.admin.salesChannel.update(channel.id, {
         locations: [{ id: location.id }],
       } as any);
     } catch (e: any) {
-      // Some Medusa versions treat "already linked" as an error — ignore.
       const msg = String(e?.message ?? '');
       if (!msg.includes('already')) {
         console.warn('Sales channel → location link warning:', msg);
       }
     }
 
-    // Enable the `manual` fulfillment provider on the location (idempotent).
+    // Enable the `manual` fulfillment provider on the location (idempotent)
     try {
       await sdk.admin.stockLocation.updateFulfillmentProviders(location.id, {
         add: ['manual'],
@@ -114,31 +111,48 @@ async function provisionMedusa(tenantId: string, tenantName: string): Promise<Re
       }
     }
 
-    // Resolve the tenant's default shipping profile
+    // ----------------------------------------------------------------------
+    // 4. Resolve the default shipping profile
+    // ----------------------------------------------------------------------
     const profiles = await sdk.admin.shippingProfile.list({ limit: 50 });
     const defaultProfile =
       profiles.shipping_profiles.find((p: any) => p.type === 'default') ??
       profiles.shipping_profiles[0];
     if (!defaultProfile) throw new Error('No shipping profile available');
 
-    // Resolve the fulfillment set for the tenant's stock location
-    const loc = await sdk.admin.stockLocation.retrieve(binding.locationId, {
+    // ----------------------------------------------------------------------
+    // 5. Resolve the fulfillment set / service zone
+    // 👇 FIXED: use `location.id` (not an undefined `binding`)
+    // ----------------------------------------------------------------------
+    const loc = await sdk.admin.stockLocation.retrieve(location.id, {
       fields: '*fulfillment_sets,*fulfillment_sets.service_zones',
     });
     const fulfillmentSet = loc.stock_location.fulfillment_sets?.[0];
     const serviceZone = fulfillmentSet?.service_zones?.[0];
     if (!serviceZone) throw new Error('No service zone for stock location');
 
-    await prisma.medusaBinding.update({
-      where: { tenantId },
-      data: {
-        shippingProfileId: defaultProfile.id,
-        serviceZoneId: serviceZone.id,
-      },
-    });
+    // ----------------------------------------------------------------------
+    // 6. Create the tenant's region (idempotent — check for existing first)
+    // 👇 Every tenant gets their OWN region.
+    // ----------------------------------------------------------------------
+    const regionName = `tenant-${tenantId}-region`;
+    let region = (await sdk.admin.region.list({ q: regionName } as any))
+      .regions.find((r: any) => r.name === regionName);
+
+    if (!region) {
+      const createdRegion = await sdk.admin.region.create({
+        name: regionName,
+        currency_code: 'usd',
+        countries: ['us'],
+        payment_providers: ['pp_system_default'],
+        metadata: { tenantId }, // 👈 stamp it
+      } as any);
+      region = createdRegion.region;
+    }
 
     // ----------------------------------------------------------------------
-    // 4. Save the binding (including locationId)
+    // 7. Save everything to Prisma (single atomic update)
+    // 👇 FIXED: Only ONE update call, with the correct regionId
     // ----------------------------------------------------------------------
     await prisma.medusaBinding.update({
       where: { tenantId },
@@ -146,21 +160,28 @@ async function provisionMedusa(tenantId: string, tenantName: string): Promise<Re
         backendUrl: MEDUSA_URL,
         publishableKey: token,
         salesChannelId: channel.id,
-        regionId: MEDUSA_REGION_ID,
+        regionId: region.id, // ✅ saved exactly once
         adminApiKey: encryptSecret(MEDUSA_ADMIN_KEY),
         locationId: location.id,
+        shippingProfileId: defaultProfile.id,
+        serviceZoneId: serviceZone.id,
         provisioningState: 'READY',
         provisionedAt: new Date(),
         lastError: null,
         lastErrorAt: null,
       },
     });
+
     return { ok: true, state: 'READY' };
   } catch (e: any) {
     const msg = e?.message ? String(e.message) : String(e);
     await prisma.medusaBinding.update({
       where: { tenantId },
-      data: { provisioningState: 'FAILED', lastError: msg.slice(0, 1000), lastErrorAt: new Date() },
+      data: {
+        provisioningState: 'FAILED',
+        lastError: msg.slice(0, 1000),
+        lastErrorAt: new Date(),
+      },
     });
     return { ok: false, error: msg };
   }

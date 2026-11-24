@@ -49,7 +49,7 @@ export function AnalyticsClient({
           </span>
         </div>
         
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <button onClick={handleRefresh} className="p-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors bg-white" title="Refresh Data">
             <MoreHorizontal className="w-4 h-4 text-gray-600" />
           </button>
@@ -59,7 +59,7 @@ export function AnalyticsClient({
           <button className="px-4 py-1.5 rounded-full bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors">
             New exploration
           </button>
-        </div>
+        </div> */}
       </header>
 
       {/* Info Banner */}
